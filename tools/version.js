@@ -23,7 +23,7 @@ const rules = {
   'demo.html':  [[/<!-- PetBase v[^ ]+ -->/, `<!-- PetBase v${v} -->`], [/const APP_VERSION = '[^']*';/, `const APP_VERSION = '${v}';`]],
   'sw.js':      [[/const V = 'petbase-[^']*'/, `const V = 'petbase-v${v}'`]]   // caché nueva por versión: la anterior se borra al activarse
 };
-const out = {'CHANGELOG.md': cl};
+const out = {'CHANGELOG.md': cl, 'version.json': JSON.stringify({version:v}) + '\n'};   // version.json: la app lo consulta para avisar de versiones nuevas
 for (const [f, rs] of Object.entries(rules)) {
   let h = rd(f);
   for (const [re, to] of rs) { if (!re.test(h)) { console.error(`No se encontró ${re} en ${f}`); process.exit(1); } h = h.replace(re, to); }

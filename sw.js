@@ -6,7 +6,7 @@ self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Pr
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin) return;          // Firebase y fuentes van directas a la red
-  const fresh = e.request.mode === 'navigate' || /\.(html|js|json)$/.test(u.pathname) || u.pathname.endsWith('/');
+  const fresh = e.request.mode === 'navigate' || /\.(html|js|json|md)$/.test(u.pathname) || u.pathname.endsWith('/');
   e.respondWith(caches.open(V).then(async c => {
     if (fresh) {
       try { const r = await fetch(e.request, { cache: 'no-store' }); if (r.ok) c.put(e.request, r.clone()); return r; }

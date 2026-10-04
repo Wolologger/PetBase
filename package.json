@@ -11,7 +11,7 @@
     "emuladores": "firebase emulators:start --project demo-petbase",
     "desplegar:reglas": "firebase deploy --only firestore:rules",
     "version:sync": "node tools/version.js",
-    "version": "node tools/version.js && git add CHANGELOG.md index.html demo.html sw.js"
+    "version": "node tools/version.js && git add CHANGELOG.md version.json index.html demo.html sw.js"
   },
   "devDependencies": { "firebase": "10.14.1", "firebase-tools": "^13.0.0", "jsdom": "^24.0.0" }
 }

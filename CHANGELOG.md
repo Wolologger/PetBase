@@ -12,7 +12,18 @@ Cómo publicar una versión: anota los cambios en **[Sin publicar]** y ejecuta `
 
 ## [Sin publicar]
 
+### Añadido
+- Recorte de la foto de la mascota al subirla: se encuadra arrastrando, se acerca con el control, la rueda o pellizcando, y se puede girar. El círculo enseña cómo quedará el avatar.
+- Fecha de llegada a casa en la ficha de cada mascota, con la casilla «Llegó a casa el mismo día que nació». Sale en la ficha («En casa desde»), en el texto para compartir y en el CSV.
+- Vinculación real con Google Calendar y Outlook: las citas, la medicación, los cuidados y los eventos se copian solos a un calendario «PetBase» en tu cuenta. Configuración en el README.
+- Aviso de versión nueva con botón «Actualizar», y en **Ajustes → Acerca de** los botones «Buscar actualizaciones» y «Borrar caché y recargar» (no borra los datos).
+- La versión se ve junto al título de Ajustes y en la pantalla de acceso, y «Acerca de → Novedades» enseña este registro de cambios dentro de la app.
+
+### Cambiado
+- La vinculación simulada de Outlook se sustituye por la real. En la demo sigue siendo simulada, ahora también para Google Calendar.
+
 ### Corregido
+- La demo leía las fotos sin respetar la orientación de la cámara: ahora usa el mismo código que la app.
 - El teclado del móvil ya no tapa los formularios: la hoja se coloca encima del teclado, el campo activo se desplaza a la vista y la barra inferior se oculta mientras se escribe.
 - En iPhone pequeño, tocar un campo de un formulario ya no amplía la página (letra de 16 px).
 - Al exportar después de importar una copia, la fecha y la versión de la copia nueva ya no se toman de la importada.

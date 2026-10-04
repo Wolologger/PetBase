@@ -172,6 +172,32 @@ nav.bot button.on svg{color:var(--lk)}
 .swatches button{width:36px;height:36px;border-radius:50%;background:var(--c)}
 .swatches button.on{box-shadow:0 0 0 3px var(--s1),0 0 0 5px var(--c)}
 .photo{display:flex;align-items:center;gap:14px}
+.upd{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 10px);transform:translateX(-50%);z-index:45;display:flex;align-items:center;gap:8px;width:max-content;max-width:calc(100% - 24px);background:var(--s1);color:var(--tx);border:2px solid var(--lk);border-radius:18px;padding:6px 6px 6px 14px;box-shadow:0 8px 22px rgba(0,0,0,.25);font-weight:700}
+.upd[hidden]{display:none}
+.upd .btn{padding:7px 14px;min-height:0}
+.upd .ux{width:32px;height:32px;border-radius:50%;font-size:18px;color:var(--mu)}
+.ver{display:inline-block;vertical-align:middle;margin-left:10px;padding:3px 10px;border-radius:99px;background:var(--s2);color:var(--mu);font:800 13px var(--ff);letter-spacing:.02em}
+.gver{margin-top:22px;color:var(--mu);font-weight:700;font-size:13px}
+.chlog h4{font:600 19px var(--ff-d);margin:14px 0 6px}
+.chlog h4 small{font:700 13px var(--ff);color:var(--mu);margin-left:6px}
+.chlog b.cat{display:block;margin:8px 0 2px;color:var(--mu);font-size:13px;text-transform:uppercase;letter-spacing:.04em}
+.chlog ul{margin:0 0 6px;padding-left:20px}
+.chlog li{margin:3px 0;line-height:1.45}
+.calinfo{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0 0 14px;font-weight:600}
+.calinfo span{color:var(--mu)}
+.crop{position:fixed;inset:0;z-index:50;background:rgba(5,15,10,.82);display:flex;align-items:center;justify-content:center;padding:16px}
+.crop[hidden]{display:none}
+.ccard{background:var(--s1);border-radius:24px;padding:16px;width:min(100%,380px);max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.ccard h3{font:600 22px var(--ff-d)}
+.cbox{position:relative;width:100%;aspect-ratio:1;border-radius:16px;overflow:hidden;background:#111;touch-action:none;cursor:grab;user-select:none}
+.cbox:active{cursor:grabbing}
+.cbox:focus-visible{outline:3px solid var(--lk);outline-offset:2px}
+.cbox canvas{width:100%;height:100%;display:block}
+.cbox::after{content:'';position:absolute;inset:0;border-radius:50%;border:2px solid rgba(255,255,255,.9);box-shadow:0 0 0 999px rgba(0,0,0,.45);pointer-events:none}
+.crow{display:flex;align-items:center;gap:10px;font-weight:700}
+.crow input[type=range]{flex:1;accent-color:var(--lk)}
+.cfoot{display:flex;gap:8px;justify-content:flex-end}
+.f input:disabled{opacity:.55}
 .help{font-size:13px;color:var(--mu);margin-top:6px}
 .petdet{display:flex;gap:18px;align-items:center;margin:8px 0 14px}
 .petdet .av{width:84px;height:84px;font-size:32px}
@@ -585,6 +611,8 @@ html.kb .sheet{bottom:var(--kb,0px);max-height:calc(100% - var(--kb,0px) - env(s
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="loader" id="loader" hidden role="status" aria-live="polite"><div class="lcard"><div class="lbody"></div></div></div>
 <div class="gate" id="gate" role="dialog" aria-modal="true" aria-label="Iniciar sesión"></div>
+<div class="upd" id="upd" hidden role="status" aria-live="polite"></div>
+<div class="crop" id="crop" hidden role="dialog" aria-modal="true" aria-label="Recortar foto"></div>
 <div class="splash" id="splash" aria-hidden="true"></div>
 <input type="file" id="imp" accept="application/json" hidden>
 <input type="file" id="photoIn" accept="image/*" hidden>
@@ -1254,7 +1282,7 @@ function loadState(){
   if (window.PETBASE_REAL || window.PETBASE_FIREBASE){ const b = blank(); b.settings = {}; b.vetV = 1; b.v4 = 1; initSync(b); return b; }
   return seed();
 }
-function save(){ persist(); autoSyncSoon(); }
+function save(){ persist(); autoSyncSoon(); calSyncSoon(); }
 const uid = () => 'm' + PetBaseSync.rnd(12);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad = n => String(n).padStart(2,'0');
@@ -1373,6 +1401,7 @@ let view = 'inicio', lastView = 'inicio';
 function go(v){
   if (v === 'resumen' && view !== 'resumen') rsOff = 0;
   if (v !== 'ajustes' && v !== 'datos') lastView = v;
+  if (v === 'ajustes') calPreload();
   view = v;
   document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id === 'v-'+v));
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === (v === 'comida' || v === 'ficha' ? 'mascotas' : v === 'resumen' ? 'inicio' : v)));
@@ -1585,7 +1614,7 @@ function rAjustes(){
   const seg = (v, l) => `<button class="${th === v ? 'on' : ''}" aria-pressed="${th === v}" onclick="setTheme('${v}')">${l}</button>`;
   const ws = weekStartDay();
   const wseg = (v, l) => `<button class="${ws === v ? 'on' : ''}" aria-pressed="${ws === v}" onclick="setWeekStart(${v})">${l}</button>`;
-  const a = S.account, o = S.outlook;
+  const a = S.account, cal = S.cal || {};
   const hm = ts => new Date(ts).toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
   const day = ts => { const d = iso(new Date(ts)); return d === today() ? 'hoy' : fmtDay(d).toLowerCase(); };
   const palBtn = p => { const c = p[mode];
@@ -1606,7 +1635,7 @@ function rAjustes(){
         <button class="btn pri w" onclick="signInMenu()">Iniciar sesión con Google</button>
       </div>`;
   document.getElementById('v-ajustes').innerHTML = `
-    <h1 class="title">Ajustes</h1>
+    <h1 class="title">Ajustes<span class="ver">v${APP_VERSION}</span></h1>
     <div class="cols"><div class="col">
       <h2 class="sec">${svg('user')}Cuenta</h2>${acct}
       <h2 class="sec">${svg('sun')}Apariencia</h2>
@@ -1623,10 +1652,11 @@ function rAjustes(){
         <div class="seg">${wseg(1,'Lunes')}${wseg(0,'Domingo')}</div>
         <p class="help">Afecta al calendario y al resumen de la semana.</p></div></div>
       <div class="card list-set inner" style="margin-top:10px">
-        <button onclick="toggleOutlook()">${svg('cal')}${o ? 'Outlook vinculado' : 'Vincular con Outlook'}<span>${o ? esc(o.email) : 'Sin conectar'}</span></button>
+        <button onclick="calMenu('google')">${svg('cal')}${cal.google ? 'Google Calendar' : 'Vincular Google Calendar'}<span>${esc(calStatus('google'))}</span></button>
+        <button onclick="calMenu('outlook')">${svg('cal')}${cal.outlook ? 'Outlook' : 'Vincular Outlook'}<span>${esc(calStatus('outlook'))}</span></button>
         <button onclick="exportICS()">${svg('dl')}Exportar pendientes<span>.ics</span></button>
       </div>
-      <p class="help" style="margin-top:8px">La cuenta de Outlook es independiente de la cuenta con la que entras a la app.</p>
+      <p class="help" style="margin-top:8px">Las citas, la medicación y los cuidados se copian solos a un calendario «PetBase» en tu cuenta de Google o de Outlook. Puede ser una cuenta distinta de la que usas para entrar.</p>
       <h2 class="sec">${svg('play')}Atajos del icono</h2>
       <div class="card list-set inner">
         <button onclick="runShortcut('nota')">${svg('pen')}Nueva nota<span>Probar</span></button>
@@ -1643,6 +1673,13 @@ function rAjustes(){
         <button onclick="document.getElementById('imp').click()">${svg('ul')}Importar copia de seguridad<span>.json</span></button>
         ${(window.PETBASE_REAL || window.PETBASE_FIREBASE) ? '' : `<button onclick="resetDemo()">${svg('rep')}Restablecer datos de ejemplo</button>`}
       </div>
+      <h2 class="sec">${svg('paw')}Acerca de</h2>
+      <div class="card list-set inner">
+        <button onclick="showChangelog()">${svg('book')}Novedades<span>PetBase v${APP_VERSION}</span></button>
+        <button onclick="checkUpdate(true)">${svg('rep')}Buscar actualizaciones<span>${updNewer() ? 'Nueva: v' + esc(UPD.latest) : 'Al día'}</span></button>
+        <button onclick="clearCache()">${svg('trash')}Borrar caché y recargar<span>Los datos no se tocan</span></button>
+      </div>
+      ${updNewer() ? `<button class="btn pri w" style="margin-top:10px" onclick="refreshApp()">${svg('rep')}Actualizar a la v${esc(UPD.latest)}</button>` : ''}
       <p class="help" style="margin-top:14px">${S.pets.length} ${S.pets.length===1?'mascota':'mascotas'} · ${S.entries.length} registros · PetBase v${APP_VERSION}${window.PETBASE_REAL ? '' : ' · demo'}</p>
     </div></div>`;
 }
@@ -1653,9 +1690,342 @@ function signInMenu(){
     <button class="acct-opt" onclick="signIn()"><span class="me sm">D</span><span><b>Cuenta de ejemplo</b><small>demo@petbase.app</small></span></button>`);
 }
 function syncNow(){ return runSync('sync'); }
-function toggleOutlook(){
-  if (S.outlook){ if (!confirm('¿Desvincular Outlook? Los eventos ya creados se quedan en tu calendario.')) return; S.outlook = null; save(); rAjustes(); toast('Outlook desvinculado'); return; }
-  busy('Vinculando Outlook…', 1200, 'paws', () => { S.outlook = {email:'demo@outlook.com'}; save(); rAjustes(); toast('Outlook vinculado (simulado en la demo)'); });
+// ── Calendarios de Google y Outlook (de verdad): PetBase copia las citas, la medicación, los cuidados y los eventos
+// a un calendario propio llamado «PetBase» dentro de la cuenta del usuario. Va en un solo sentido (PetBase → calendario):
+// cada evento lleva una marca oculta con el id del registro y en cada pasada se compara lo que hay con lo que debería haber,
+// así que no hace falta servidor y dos dispositivos vinculados no duplican eventos.
+// La vinculación es de cada dispositivo (S.cal no se sube a la nube). Identificadores OAuth: window.PETBASE_CALENDAR en firebase-config.js.
+const CAL_NAME = {google:'Google Calendar', outlook:'Outlook'};
+const CAL_TZ = (() => { try{ return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Madrid'; }catch(e){ return 'Europe/Madrid'; } })();
+const CAL_SRC = {google:'https://accounts.google.com/gsi/client', outlook:'https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js'};
+const CAL_SCOPES = {google:'https://www.googleapis.com/auth/calendar.app.created email', outlook:['Calendars.ReadWrite', 'User.Read']};
+const CALST = {google:{}, outlook:{}, timer:null, running:false, again:false, scripts:{}};
+const calCfg = () => window.PETBASE_CALENDAR || {};
+const calReal = () => !!(window.PETBASE_REAL || window.PETBASE_FIREBASE);
+const calClientId = k => calCfg()[k + 'ClientId'] || null;
+const calEnc = encodeURIComponent;
+const calAuthErr = () => Object.assign(new Error('Hay que volver a dar permiso'), {auth:true});
+function calScript(k){
+  return CALST.scripts[k] ||= new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = CAL_SRC[k]; s.async = true;
+    s.onload = res; s.onerror = () => { delete CALST.scripts[k]; s.remove(); rej(new Error('No se pudo cargar ' + CAL_NAME[k] + '. Comprueba la conexión')); };
+    document.head.appendChild(s);
+  });
+}
+// carga por adelantado lo necesario: así la ventana de permiso se abre al momento y el navegador no la bloquea
+function calPreload(){ if (calReal()) ['google', 'outlook'].forEach(k => { if (calClientId(k)) calScript(k).then(() => k === 'outlook' && msalApp()).catch(() => {}); }); }
+
+// ── qué debería haber en el calendario
+const calHash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); };
+function calEnd(date, time){ const d = parse(date), [h, m] = time.split(':').map(Number); d.setHours(h + 1, m, 0, 0); return iso(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'; }
+function calItems(){
+  const since = addDays(today(), -60), out = [];
+  for (const e of S.entries){
+    if (!SCHEDULED.includes(e.type) || !e.date || (e.done && e.date < since)) continue;   // lo hecho hace más de 60 días no se copia
+    const who = petNames(e.petIds), title = (e.done ? '✓ ' : '') + (who ? who + ': ' : '') + entryTitle(e);
+    const desc = [TYPES[e.type].label, entrySub(e), e.text, 'Creado desde PetBase. Los cambios se hacen en la app.'].filter(Boolean).join('\n');
+    const r = e.done ? null : getRec(e);                                      // lo ya hecho queda como evento suelto: la serie sigue en el siguiente
+    if (r && r.u === 'h'){
+      // ni Google ni Outlook repiten por horas: se crea cada toma, como mucho 60 o los próximos 30 días
+      let d = {date:e.date, time:e.time || '08:00'}, occ = e.occ || 1; const stop = addDays(e.date, 30);
+      for (let k = 0; k < 60; k++){
+        out.push({key:e.id + '_' + k, title, desc, date:d.date, time:d.time, rec:null});
+        if (r.end === 'count' && occ >= (+r.count || 1)) break;
+        const nx = addRec(d.date, d.time, r); occ++;
+        if ((r.end === 'until' && r.until && nx.date > r.until) || nx.date > stop) break;
+        d = nx;
+      }
+    } else out.push({key:e.id, title, desc, date:e.date, time:e.time || '', rec:r ? {u:r.u, n:Math.max(1, +r.n || 1), end:r.end, until:r.until || '', left:r.end === 'count' ? Math.max(1, (+r.count || 1) - ((e.occ || 1) - 1)) : 0} : null});
+  }
+  out.forEach(x => { x.hash = calHash(JSON.stringify([x.title, x.desc, x.date, x.time, x.rec, CAL_TZ])); });
+  return out;
+}
+
+// ── Google Calendar (Google Identity Services + Calendar API v3)
+function gBody(x){
+  const b = {summary:x.title, description:x.desc, extendedProperties:{private:{pbKey:x.key, pbHash:x.hash}}};
+  if (x.time){ b.start = {dateTime:`${x.date}T${x.time}:00`, timeZone:CAL_TZ}; b.end = {dateTime:calEnd(x.date, x.time), timeZone:CAL_TZ}; }
+  else { b.start = {date:x.date}; b.end = {date:addDays(x.date, 1)}; }
+  if (x.rec){
+    let rr = 'RRULE:FREQ=' + ({d:'DAILY', w:'WEEKLY', m:'MONTHLY', y:'YEARLY'})[x.rec.u];
+    if (x.rec.n > 1) rr += ';INTERVAL=' + x.rec.n;
+    if (x.rec.left) rr += ';COUNT=' + x.rec.left;
+    else if (x.rec.end === 'until' && x.rec.until) rr += ';UNTIL=' + x.rec.until.replace(/-/g, '') + (x.time ? 'T235959Z' : '');
+    b.recurrence = [rr];
+  }
+  return b;
+}
+function gSaved(){ try{ const t = JSON.parse(sessionStorage.getItem('petbase_gtok') || 'null'); if (t && t.exp > Date.now() + 60000) return t; }catch(e){} return null; }
+async function gToken(interactive){
+  const st = CALST.google, saved = st.token ? st : gSaved();
+  if (saved && saved.exp > Date.now() + 60000) return saved.token;
+  if (!interactive) throw calAuthErr();
+  await calScript('google');
+  return new Promise((res, rej) => {
+    const tc = google.accounts.oauth2.initTokenClient({client_id:calClientId('google'), scope:CAL_SCOPES.google,
+      callback:r => {
+        if (r.error) return rej(new Error(r.error === 'access_denied' ? 'No diste permiso para usar el calendario' : 'Google: ' + r.error));
+        if (!google.accounts.oauth2.hasGrantedAllScopes(r, 'https://www.googleapis.com/auth/calendar.app.created')) return rej(new Error('Hace falta marcar el permiso del calendario en la ventana de Google'));
+        st.token = r.access_token; st.exp = Date.now() + (+r.expires_in || 3600) * 1000;
+        try{ sessionStorage.setItem('petbase_gtok', JSON.stringify({token:st.token, exp:st.exp})); }catch(e){}
+        res(st.token);
+      },
+      error_callback:e => rej(new Error(/popup_closed/.test(e && e.type || '') ? 'Has cerrado la ventana de Google' : 'No se pudo abrir la ventana de Google (' + ((e && e.type) || 'error') + ')'))});
+    tc.requestAccessToken({prompt:S.cal?.google ? '' : 'consent', login_hint:S.cal?.google?.email || undefined});
+  });
+}
+async function gApi(method, path, body, interactive){
+  const t = await gToken(interactive);
+  const r = await fetch(path.startsWith('https:') ? path : 'https://www.googleapis.com/calendar/v3' + path, {method, headers:{Authorization:'Bearer ' + t, 'Content-Type':'application/json'}, body:body ? JSON.stringify(body) : undefined});
+  if (r.status === 401){ CALST.google.token = null; try{ sessionStorage.removeItem('petbase_gtok'); }catch(e){} throw calAuthErr(); }
+  if (method === 'DELETE' && (r.status === 404 || r.status === 410)) return null;
+  if (!r.ok) throw Object.assign(new Error('Google ' + r.status + ': ' + (await r.text()).slice(0, 160)), {status:r.status});
+  return r.status === 204 ? null : r.json();
+}
+
+// ── Outlook (MSAL + Microsoft Graph)
+const OX = 'String {6f1d3b52-9c4e-4a7b-8d21-5e0c7a9b4f13} Name ';
+const DOW = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+function oBody(x){
+  const b = {subject:x.title, body:{contentType:'text', content:x.desc}, isAllDay:!x.time,
+    start:{dateTime:x.time ? `${x.date}T${x.time}:00` : x.date + 'T00:00:00', timeZone:CAL_TZ},
+    end:{dateTime:x.time ? calEnd(x.date, x.time) : addDays(x.date, 1) + 'T00:00:00', timeZone:CAL_TZ},
+    singleValueExtendedProperties:[{id:OX + 'pbKey', value:x.key}, {id:OX + 'pbHash', value:x.hash}]};
+  if (x.rec){
+    const d = parse(x.date), n = x.rec.n;
+    const pattern = x.rec.u === 'd' ? {type:'daily', interval:n} : x.rec.u === 'w' ? {type:'weekly', interval:n, daysOfWeek:[DOW[d.getDay()]], firstDayOfWeek:'monday'}
+      : x.rec.u === 'm' ? {type:'absoluteMonthly', interval:n, dayOfMonth:d.getDate()} : {type:'absoluteYearly', interval:n, dayOfMonth:d.getDate(), month:d.getMonth() + 1};
+    const range = x.rec.left ? {type:'numbered', startDate:x.date, numberOfOccurrences:x.rec.left}
+      : x.rec.end === 'until' && x.rec.until ? {type:'endDate', startDate:x.date, endDate:x.rec.until} : {type:'noEnd', startDate:x.date};
+    b.recurrence = {pattern, range};
+  }
+  return b;
+}
+async function msalApp(){
+  if (CALST.msal) return CALST.msal;
+  await calScript('outlook');
+  const app = new msal.PublicClientApplication({auth:{clientId:calClientId('outlook'), authority:'https://login.microsoftonline.com/common', redirectUri:new URL('auth.html', location.href).href},
+    cache:{cacheLocation:'localStorage'}});
+  if (app.initialize) await app.initialize();
+  return CALST.msal = app;
+}
+async function oToken(interactive){
+  const app = await msalApp(), scopes = CAL_SCOPES.outlook, email = S.cal?.outlook?.email;
+  const acc = app.getAllAccounts().find(a => !email || a.username === email);
+  if (acc){
+    try{ return (await app.acquireTokenSilent({scopes, account:acc})).accessToken; }
+    catch(e){ if (!interactive) throw calAuthErr(); }
+  } else if (!interactive) throw calAuthErr();
+  try{
+    const r = await app.acquireTokenPopup({scopes, prompt:'select_account', loginHint:email || undefined});
+    CALST.outlook.email = r.account && r.account.username; return r.accessToken;
+  }catch(e){
+    const c = (e && e.errorCode) || '';
+    throw new Error(/user_cancelled|popup_window_error|empty_window/.test(c) ? 'Has cerrado la ventana de Microsoft o el navegador la ha bloqueado' : 'Microsoft: ' + (c || e.message));
+  }
+}
+async function oApi(method, path, body, interactive){
+  const t = await oToken(interactive);
+  const r = await fetch(path.startsWith('https:') ? path : 'https://graph.microsoft.com/v1.0' + path, {method, headers:{Authorization:'Bearer ' + t, 'Content-Type':'application/json'}, body:body ? JSON.stringify(body) : undefined});
+  if (r.status === 401) throw calAuthErr();
+  if (method === 'DELETE' && r.status === 404) return null;
+  if (!r.ok) throw Object.assign(new Error('Outlook ' + r.status + ': ' + (await r.text()).slice(0, 160)), {status:r.status});
+  return r.status === 204 ? null : r.json();
+}
+
+// ── lo común: calendario propio, listar, crear, actualizar y borrar
+const CAL_API = {
+  google:{
+    async me(i){ const r = await gApi('GET', 'https://www.googleapis.com/oauth2/v3/userinfo', null, i); return r.email || 'Cuenta de Google'; },
+    async ensure(c, i){
+      if (c.calId){ try{ await gApi('GET', '/calendars/' + calEnc(c.calId), null, i); return; }catch(e){ if (e.status !== 404 && e.status !== 403) throw e; } }
+      c.calId = (await gApi('POST', '/calendars', {summary:'PetBase', description:'Citas, medicación y cuidados de tus mascotas (PetBase)', timeZone:CAL_TZ}, i)).id;
+    },
+    async list(c, i){
+      const out = []; let pt = '';
+      do {
+        const r = await gApi('GET', `/calendars/${calEnc(c.calId)}/events?maxResults=2500${pt ? '&pageToken=' + calEnc(pt) : ''}`, null, i);
+        (r.items || []).forEach(ev => { const p = (ev.extendedProperties && ev.extendedProperties.private) || {}; if (p.pbKey && ev.status !== 'cancelled') out.push({id:ev.id, key:p.pbKey, hash:p.pbHash}); });
+        pt = r.nextPageToken;
+      } while (pt);
+      return out;
+    },
+    create:(c, x, i) => gApi('POST', `/calendars/${calEnc(c.calId)}/events`, gBody(x), i),
+    update:(c, ev, x, i) => gApi('PUT', `/calendars/${calEnc(c.calId)}/events/${calEnc(ev.id)}`, gBody(x), i),
+    remove:(c, ev, i) => gApi('DELETE', `/calendars/${calEnc(c.calId)}/events/${calEnc(ev.id)}`, null, i),
+    drop:(c, i) => gApi('DELETE', '/calendars/' + calEnc(c.calId), null, i),
+    async forget(){ const t = CALST.google.token || (gSaved() || {}).token; CALST.google = {}; try{ sessionStorage.removeItem('petbase_gtok'); }catch(e){} if (t && window.google && google.accounts) google.accounts.oauth2.revoke(t, () => {}); }
+  },
+  outlook:{
+    async me(i){ const r = await oApi('GET', '/me?$select=mail,userPrincipalName', null, i); return CALST.outlook.email || r.mail || r.userPrincipalName || 'Cuenta de Microsoft'; },
+    async ensure(c, i){
+      if (c.calId){ try{ await oApi('GET', '/me/calendars/' + calEnc(c.calId), null, i); return; }catch(e){ if (e.status !== 404) throw e; } }
+      c.calId = (await oApi('POST', '/me/calendars', {name:'PetBase'}, i)).id;
+    },
+    async list(c, i){
+      const out = [], f = calEnc(`id eq '${OX}pbKey' or id eq '${OX}pbHash'`);
+      let url = `/me/calendars/${calEnc(c.calId)}/events?$select=id&$top=500&$expand=singleValueExtendedProperties($filter=${f})`;
+      while (url){
+        const r = await oApi('GET', url, null, i);
+        (r.value || []).forEach(ev => { const p = {}; (ev.singleValueExtendedProperties || []).forEach(x => { p[x.id.split(' ').pop()] = x.value; }); if (p.pbKey) out.push({id:ev.id, key:p.pbKey, hash:p.pbHash}); });
+        url = r['@odata.nextLink'] || '';
+      }
+      return out;
+    },
+    create:(c, x, i) => oApi('POST', `/me/calendars/${calEnc(c.calId)}/events`, oBody(x), i),
+    // Graph no deja convertir bien una serie en evento suelto (ni al revés): se borra y se vuelve a crear
+    async update(c, ev, x, i){ await oApi('DELETE', '/me/events/' + calEnc(ev.id), null, i); return oApi('POST', `/me/calendars/${calEnc(c.calId)}/events`, oBody(x), i); },
+    remove:(c, ev, i) => oApi('DELETE', '/me/events/' + calEnc(ev.id), null, i),
+    drop:(c, i) => oApi('DELETE', '/me/calendars/' + calEnc(c.calId), null, i),
+    async forget(){ CALST.outlook = {}; }
+  }
+};
+async function calRun(k, interactive){
+  const c = S.cal && S.cal[k]; if (!c) return 0;
+  if (c.demo){ c.at = Date.now(); persist(); return 0; }
+  const api = CAL_API[k], st = CALST[k];
+  try{
+    await api.ensure(c, interactive);
+    const want = calItems(), have = await api.list(c, interactive), byKey = new Map(), jobs = [];
+    for (const ev of have){ if (byKey.has(ev.key)) jobs.push(() => api.remove(c, ev, interactive)); else byKey.set(ev.key, ev); }   // duplicados
+    for (const x of want){
+      const ev = byKey.get(x.key); byKey.delete(x.key);
+      if (!ev) jobs.push(() => api.create(c, x, interactive));
+      else if (ev.hash !== x.hash) jobs.push(() => api.update(c, ev, x, interactive));
+    }
+    for (const ev of byKey.values()) jobs.push(() => api.remove(c, ev, interactive));             // registros borrados
+    for (let i = 0; i < jobs.length; i += 4) await Promise.all(jobs.slice(i, i + 4).map(j => j()));
+    c.at = Date.now(); c.n = want.length; st.err = null; persist();
+    return jobs.length;
+  }catch(e){ st.err = e.auth ? 'auth' : (e.message || 'Error'); persist(); throw e; }
+}
+async function calSync(interactive, only){
+  if (CALST.running){ CALST.again = true; return; }
+  CALST.running = true;
+  try{
+    for (const k of ['google', 'outlook']){
+      if (only && k !== only) continue;
+      try{ const n = await calRun(k, interactive); if (interactive) toast(CAL_NAME[k] + (n ? ` actualizado · ${n} ${n === 1 ? 'cambio' : 'cambios'}` : ' ya estaba al día')); }
+      catch(e){ console.warn(k, e); if (interactive) toast(e.auth ? 'Vuelve a dar permiso a ' + CAL_NAME[k] : 'No se pudo sincronizar ' + CAL_NAME[k] + ': ' + e.message, null, 'err'); }
+    }
+  } finally {
+    CALST.running = false;
+    if (view === 'ajustes') rAjustes();
+    if (CALST.again){ CALST.again = false; calSyncSoon(); }
+  }
+}
+function calSyncSoon(){
+  if (!S.cal || !(S.cal.google || S.cal.outlook)) return;
+  clearTimeout(CALST.timer); CALST.timer = setTimeout(() => { if (navigator.onLine !== false) calSync(false); }, 2500);
+}
+function calBoot(){
+  if (!S.cal || !(S.cal.google || S.cal.outlook)) return;
+  calPreload(); setTimeout(() => calSync(false), 4000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') calSyncSoon(); });
+  window.addEventListener('online', calSyncSoon);
+}
+function calStatus(k){
+  const c = S.cal && S.cal[k], e = CALST[k].err;
+  if (!c) return 'Sin conectar';
+  if (e === 'auth') return 'Toca para dar permiso';
+  if (e) return 'Error al sincronizar';
+  return c.email;
+}
+async function calLink(k){
+  if (!calReal()){                                                            // demo: vinculación simulada
+    return busy('Vinculando ' + CAL_NAME[k] + '…', 1000, 'paws', () => { S.cal = {...S.cal, [k]:{email:'demo@' + (k === 'google' ? 'gmail.com' : 'outlook.com'), demo:true, at:Date.now()}}; persist(); rAjustes(); toast(CAL_NAME[k] + ' vinculado (simulado en la demo)'); });
+  }
+  if (!calClientId(k)) return toast(`Falta configurar ${CAL_NAME[k]}: pon ${k}ClientId en firebase-config.js`, null, 'err');
+  if (navigator.onLine === false) return toast('Sin conexión. Vincula el calendario cuando tengas internet', null, 'err');
+  try{
+    const email = await CAL_API[k].me(true);
+    S.cal = {...S.cal, [k]:{email}}; CALST[k].err = null; persist(); rAjustes();
+    toast('Copiando tus citas a ' + CAL_NAME[k] + '…');
+    await calSync(true, k);
+  }catch(e){ console.warn(e); toast(e.auth ? 'No se pudo obtener permiso de ' + CAL_NAME[k] : e.message, null, 'err'); }
+}
+function calMenu(k){
+  const c = S.cal && S.cal[k]; if (!c) return calLink(k);
+  const e = CALST[k].err, when = c.at ? new Date(c.at).toLocaleString('es-ES', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) : 'Todavía no';
+  openSheet(head(CAL_NAME[k]) + `<div class="calinfo"><span>Cuenta</span><b>${esc(c.email)}</b><span>Calendario</span><b>PetBase</b>
+      <span>Última vez</span><b>${esc(when)}${c.n != null ? ' · ' + c.n + ' eventos' : ''}</b>${e ? `<span>Estado</span><b style="color:var(--t-vet)">${esc(e === 'auth' ? 'Hay que volver a dar permiso' : e)}</b>` : ''}</div>
+    <p class="help" style="margin:-4px 0 14px">Las citas, la medicación, los cuidados y los eventos se copian solos al calendario «PetBase» de esta cuenta cuando los cambias. Edítalos en PetBase: lo que cambies en ${CAL_NAME[k]} se sobrescribe.</p>
+    <div class="row"><button class="btn pri" onclick="closeSheet();calSync(true,'${k}')">${svg('rep')}${e === 'auth' ? 'Dar permiso y sincronizar' : 'Sincronizar ahora'}</button>
+      <button class="btn dng" onclick="calUnlink('${k}')">Desvincular</button></div>`);
+}
+async function calUnlink(k){
+  const c = S.cal && S.cal[k]; if (!c) return;
+  if (!confirm(`¿Desvincular ${CAL_NAME[k]}?`)) return;
+  const drop = !c.demo && confirm('¿Borrar también el calendario «PetBase» de tu cuenta?\n\nAceptar: se borra con todos sus eventos.\nCancelar: se queda como está y deja de actualizarse.');
+  closeSheet();
+  if (drop){ try{ if (c.calId) await CAL_API[k].drop(c, true); }catch(e){ toast('No se pudo borrar el calendario: ' + e.message, null, 'err'); } }
+  try{ await CAL_API[k].forget(); }catch(e){}
+  S.cal = {...S.cal, [k]:null}; CALST[k] = {}; persist(); rAjustes(); toast(CAL_NAME[k] + ' desvinculado');
+}
+
+// ── Versión nueva: se compara APP_VERSION con version.json del sitio (lo escribe tools/version.js en cada versión)
+const UPD = {latest:null, at:0};
+const verCmp = (a, b) => { const p = v => String(v).split('-')[0].split('.').map(n => +n || 0), x = p(a), y = p(b); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); return 0; };
+const updNewer = () => !!UPD.latest && verCmp(UPD.latest, APP_VERSION) > 0;
+async function checkUpdate(manual){
+  if (!/^https?:$/.test(location.protocol)) { if (manual) toast('Solo se puede comprobar con la app publicada en una web', null, 'warn'); return false; }
+  try{
+    const r = await fetch('version.json?t=' + Date.now(), {cache:'no-store'}); if (!r.ok) throw new Error(r.status);
+    UPD.latest = String((await r.json()).version || ''); UPD.at = Date.now();
+    if (updNewer()) updShow(manual); else if (manual) toast('Estás al día · PetBase v' + APP_VERSION);
+    if (view === 'ajustes') rAjustes();
+    return updNewer();
+  }catch(e){ if (manual) toast('No se pudo comprobar si hay versión nueva. Comprueba la conexión', null, 'err'); return false; }
+}
+function updShow(force){
+  const el = document.getElementById('upd'); if (!el || !updNewer()) return;
+  let skip = ''; try{ skip = sessionStorage.getItem('petbase_upd_skip') || ''; }catch(e){}
+  if (skip === UPD.latest && !force) return;                                  // «más tarde»: no se vuelve a avisar hasta la próxima vez que se abra
+  el.innerHTML = `<span>Nueva versión: v${esc(UPD.latest)}</span><button class="btn pri" onclick="refreshApp()">Actualizar</button><button class="ux" aria-label="Más tarde" onclick="updHide()">✕</button>`;
+  el.hidden = false;
+}
+function updHide(){ const el = document.getElementById('upd'); if (el) el.hidden = true; try{ sessionStorage.setItem('petbase_upd_skip', UPD.latest || ''); }catch(e){} }
+// Borra la caché de la app y el service worker y recarga. Los datos (mascotas, registros, ajustes) están en otro sitio y no se tocan.
+async function refreshApp(){
+  const el = document.getElementById('upd'); if (el) el.innerHTML = '<span>Actualizando…</span>';
+  try{ if (window.caches) for (const k of await caches.keys()) if (k.startsWith('petbase')) await caches.delete(k); }catch(e){}
+  try{ if (navigator.serviceWorker) for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); }catch(e){}
+  try{ sessionStorage.removeItem('petbase_upd_skip'); }catch(e){}
+  location.reload();
+}
+function clearCache(){
+  if (!confirm('¿Borrar la caché de la app y recargar?\n\nSe descarga de nuevo la última versión. Tus mascotas, registros y ajustes no se borran.')) return;
+  toast('Borrando caché…'); setTimeout(refreshApp, 300);
+}
+function updBoot(){
+  setTimeout(() => checkUpdate(false), 5000);
+  setInterval(() => { if (document.visibilityState === 'visible') checkUpdate(false); }, 30 * 60000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - UPD.at > 10 * 60000) checkUpdate(false); });
+}
+
+// ── Novedades: se lee CHANGELOG.md del propio sitio y se enseñan las últimas versiones
+async function showChangelog(){
+  openSheet(head('Novedades') + `<p class="help" style="margin:-6px 0 6px">Estás usando PetBase v${APP_VERSION}.</p><div class="chlog" id="chlog"><p class="help">Cargando…</p></div>`);
+  const box = () => document.getElementById('chlog');
+  try{
+    const r = await fetch('CHANGELOG.md', {cache:'no-store'}); if (!r.ok) throw new Error(r.status);
+    const md = await r.text(), inl = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`(.+?)`/g, '<code>$1</code>');
+    const parts = md.split(/^## /m).slice(1).filter(p => !/^\[Sin publicar\]\s*$/.test(p.trim()) && /^\[/.test(p)).slice(0, 4);
+    let html = '';
+    for (const p of parts){
+      const lines = p.split(/\r?\n/), m = lines[0].match(/^\[([^\]]+)\](?:\s*-\s*(\S+))?/); if (!m) continue;
+      html += `<h4>${m[1] === 'Sin publicar' ? 'Próximamente' : 'v' + esc(m[1])}${m[2] ? `<small>${esc(fmtDay(m[2], 1))}</small>` : ''}</h4>`;
+      let ul = false;
+      for (const l of lines.slice(1)){
+        if (/^### /.test(l)){ if (ul){ html += '</ul>'; ul = false; } html += `<b class="cat">${inl(l.slice(4))}</b>`; }
+        else if (/^- /.test(l)){ if (!ul){ html += '<ul>'; ul = true; } html += `<li>${inl(l.slice(2))}</li>`; }
+        else if (/^\[.+\]: /.test(l)) continue;
+        else if (l.trim()){ if (ul){ html += '</ul>'; ul = false; } html += `<p class="help">${inl(l)}</p>`; }
+      }
+      if (ul) html += '</ul>';
+    }
+    if (box()) box().innerHTML = html || '<p class="help">No hay novedades anotadas.</p>';
+  }catch(e){ if (box()) box().innerHTML = '<p class="help">No se pudieron cargar las novedades. Comprueba la conexión.</p>'; }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2190,7 +2560,7 @@ function persist(){
   try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); LS_ERR = false; }
   catch(e){ if (!LS_ERR){ LS_ERR = true; toast('No se pudo guardar en este dispositivo. Exporta una copia por si acaso', null, 'err'); } }
 }
-function adoptState(ns){ ns.account = S.account; ns.outlook = S.outlook; ns.sync = S.sync; ns.meta = S.meta; S = ns; CLK = null; initSync(S); }
+function adoptState(ns){ ns.account = S.account; ns.cal = S.cal; ns.sync = S.sync; ns.meta = S.meta; S = ns; CLK = null; initSync(S); }
 
 const isOffline = () => FB ? (typeof navigator !== 'undefined' && navigator.onLine === false) : DEMO_OPTS.offline;
 const adapterKind = () => FB ? 'firestore' : 'fake';
@@ -2345,7 +2715,7 @@ function gateShow(state, msg, busy){
   const body = state === 'loading' ? `<div style="display:flex;justify-content:center">${loaderHTML('paws')}</div><p class="gmsg">Comprobando tu sesión…</p>`
     : state === 'error' ? `<p class="gmsg err">${esc(msg)}</p><button class="btn pri w" onclick="location.reload()">Reintentar</button>`
     : `${msg ? `<p class="gmsg err">${esc(msg)}</p>` : ''}<button class="btn pri w" id="gateBtn"${busy ? ' disabled' : ''} onclick="fbSignIn()">${busy ? 'Abriendo Google…' : 'Iniciar sesión con Google'}</button><p class="help" style="margin-top:14px">Tus datos se guardan en tu cuenta y se sincronizan entre tus dispositivos.</p>`;
-  g.innerHTML = `<div class="gcard"><div class="gbrand">${svg('paw')}PetBase</div><p class="gtag">Gestión, seguimiento e historial médico de tus mascotas</p>${body}</div>`;
+  g.innerHTML = `<div class="gcard"><div class="gbrand">${svg('paw')}PetBase</div><p class="gtag">Gestión, seguimiento e historial médico de tus mascotas</p>${body}<p class="gver">PetBase v${APP_VERSION}</p></div>`;
 }
 function gateHide(){ clearTimeout(GATE.t); document.documentElement.classList.remove('gated'); const g = document.getElementById('gate'); if (g) g.innerHTML = ''; }
 const authMsg = e => {
@@ -2601,7 +2971,7 @@ function clearCloud(){ if (!confirm('¿Vaciar la nube? Tus datos del dispositivo
 // Exportación completa
 function csvCell(v){ if (v === undefined || v === null) return ''; const s = Array.isArray(v) ? v.join(' / ') : String(v); return /[";\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
 function toCSV(rows, cols){ return '\ufeff' + [cols.map(c => c[0]).join(';')].concat(rows.map(r => cols.map(c => csvCell(typeof c[1] === 'function' ? c[1](r) : r[c[1]])).join(';'))).join('\r\n') + '\r\n'; }
-const PET_COLS = [['Nombre', 'name'], ['Especie', 'species'], ['Raza', 'breed'], ['Sexo', 'sex'], ['Nacimiento', 'birth'], ['Chip', 'chip'], ['Clínica habitual', 'clinic'], ['Alergias y condiciones', 'conditions'], ['Notas', 'notes']];
+const PET_COLS = [['Nombre', 'name'], ['Especie', 'species'], ['Raza', 'breed'], ['Sexo', 'sex'], ['Nacimiento', 'birth'], ['Llegó a casa', 'home'], ['Chip', 'chip'], ['Clínica habitual', 'clinic'], ['Alergias y condiciones', 'conditions'], ['Notas', 'notes']];
 const ENTRY_COLS = [['Tipo', r => (TYPES[r.type] || {}).label || r.type], ['Fecha', 'date'], ['Hora', 'time'], ['Mascotas', r => petNames(r.petIds)], ['Título', r => entryTitle(r)], ['Texto', 'text'], ['Tratamiento', 'treatment'], ['Dosis', r => doseText(r)],
   ['Lugar', 'place'], ['Coste €', 'cost'], ['Peso kg', 'weight'], ['Duración min', 'duration'], ['Distancia km', 'distance'], ['Cantidad g', 'grams'], ['Saco', r => { const k = sackById(r.sackId); return k ? k.brand + (k.product ? ' ' + k.product : '') : ''; }],
   ['Tipo de visita', r => KINDS[r.kind] || ''], ['Dónde', 'where'], ['Hecho', r => r.done ? 'sí' : 'no'], ['Repetición', r => recText(r)]];
@@ -3082,7 +3452,7 @@ function rFicha(){
   const kinds = [...new Set(vets.map(e => e.kind || 'otro'))];
   const list = vets.filter(e => fichaF === 'all' || (e.kind || 'otro') === fichaF);
   const groups = {}; list.forEach(e => (groups[e.date.slice(0, 4)] ||= []).push(e));
-  const kv = [['Sexo', p.sex], ['Nacimiento', p.birth ? fmtDay(p.birth, 1) : ''], ['Chip', p.chip], ['Clínica habitual', p.clinic], ['Peso actual', w ? nf(w.weight) + ' kg · ' + fmtDay(w.date).toLowerCase() : '']].filter(x => x[1]);
+  const kv = [['Sexo', p.sex], ['Nacimiento', p.birth ? fmtDay(p.birth, 1) : ''], ['En casa desde', !p.home ? '' : p.home === p.birth ? 'Desde que nació' : fmtDay(p.home, 1) + (age(p.home) ? ' · ' + age(p.home) : '')], ['Chip', p.chip], ['Clínica habitual', p.clinic], ['Peso actual', w ? nf(w.weight) + ' kg · ' + fmtDay(w.date).toLowerCase() : '']].filter(x => x[1]);
   document.getElementById('v-ficha').innerHTML = `
     <h1 class="title">Ficha de ${esc(p.name)}</h1>
     <div class="cols"><div class="col">
@@ -3113,7 +3483,7 @@ function shareFicha(){
   const vets = L.filter(e => e.type === 'vet' && e.done).sort(sortDesc);
   const w = L.filter(e => e.type === 'peso' && +e.weight > 0).sort(sortDesc)[0];
   const meds = L.filter(e => e.type === 'med' && !e.done);
-  const t = [`Ficha de ${p.name}`, [p.species, p.breed, age(p.birth), p.sex].filter(Boolean).join(' · '), p.chip ? 'Chip: ' + p.chip : null, p.clinic ? 'Clínica habitual: ' + p.clinic : null,
+  const t = [`Ficha de ${p.name}`, [p.species, p.breed, age(p.birth), p.sex].filter(Boolean).join(' · '), p.home ? 'En casa desde: ' + (p.home === p.birth ? 'que nació' : fmtDay(p.home, 1)) : null, p.chip ? 'Chip: ' + p.chip : null, p.clinic ? 'Clínica habitual: ' + p.clinic : null,
     w ? `Peso: ${nf(w.weight)} kg (${fmtDay(w.date).toLowerCase()})` : null, p.conditions ? 'Alergias y condiciones: ' + p.conditions : null,
     vets.filter(e => e.kind === 'vacuna').length ? 'Vacunas: ' + vets.filter(e => e.kind === 'vacuna').map(e => `${e.title} (${fmtDay(e.date).toLowerCase()})`).join(', ') : null,
     meds.length ? 'Medicación: ' + meds.map(e => e.title + (e.dose ? ' ' + e.dose : '')).join(', ') : null,
@@ -3139,25 +3509,40 @@ function openPet(id){
     ${nx ? `<div class="dayl" style="margin:14px 2px 8px">Lo siguiente</div>${itemHTML(nx)}` : ''}`);
 }
 let _photo = null;
+const photoCtl = () => `<button type="button" class="btn" onclick="document.getElementById('photoIn').click()">${_photo ? 'Cambiar foto' : 'Añadir foto'}</button>${_photo ? '<button type="button" class="btn" style="margin-left:6px" onclick="petPhotoSet(null)">Quitar</button>' : ''}`;
+function petPhotoSet(ph){
+  _photo = ph;
+  const pv = document.getElementById('pv'), ctl = document.getElementById('pctl');
+  if (pv) pv.innerHTML = avatar({name:inputVal('p-name') || '?', color:_petEdit.color, photo:_photo});
+  if (ctl) ctl.innerHTML = photoCtl();
+}
+// "Llegó a casa el día que nació": la fecha de llegada copia la de nacimiento y no se puede editar
+function homeSync(){
+  const same = document.getElementById('p-same'), home = document.getElementById('p-home'); if (!same || !home) return;
+  home.disabled = same.checked; if (same.checked) home.value = inputVal('p-birth');
+}
 function editPet(id){
   const p = id ? petById(id) : {name:'', species:'Perro', color:nextPetColor()};
   _photo = p.photo || null; window._petEdit = {id, color:p.color, snap:id ? JSON.parse(JSON.stringify(p)) : null};
-  const v = f => esc(p[f] ?? '');
+  const v = f => esc(p[f] ?? ''), same = !!p.birth && p.home === p.birth;
   const steps = [
     {name:'Quién es', focus:'#p-name',
-      html:`<div class="f photo"><span id="pv">${avatar({...p, name:p.name || '?', photo:_photo})}</span><div><button type="button" class="btn" onclick="document.getElementById('photoIn').click()">${_photo ? 'Cambiar foto' : 'Añadir foto'}</button>${_photo ? `<button type="button" class="btn" style="margin-left:6px" onclick="_photo=null;document.getElementById('pv').innerHTML=avatar({name:document.getElementById('p-name').value||'?',color:_petEdit.color})">Quitar</button>` : ''}</div></div>` +
+      html:`<div class="f photo"><span id="pv">${avatar({...p, name:p.name || '?', photo:_photo})}</span><div id="pctl">${photoCtl()}</div></div>` +
         fld('Nombre', `<input id="p-name" value="${v('name')}" autocomplete="off">`) +
         `<div class="row">${fld('Especie', `<select id="p-species">${SPECIES.map(x => `<option${p.species === x ? ' selected' : ''}>${x}</option>`).join('')}</select>`)}${fld('Sexo', `<select id="p-sex"><option value=""></option>${['Macho', 'Hembra'].map(x => `<option${p.sex === x ? ' selected' : ''}>${x}</option>`).join('')}</select>`)}</div>`,
       check:() => need('p-name', 'Ponle nombre')},
     {name:'Detalles', focus:'#p-breed',
-      html:fld('Raza', `<input id="p-breed" value="${v('breed')}">`) + `<div class="row">${fld('Nacimiento', `<input type="date" id="p-birth" value="${v('birth')}">`)}${fld('Nº de chip', `<input id="p-chip" value="${v('chip')}" inputmode="numeric">`)}</div>`},
+      html:`<div class="row">${fld('Raza', `<input id="p-breed" value="${v('breed')}">`)}${fld('Nº de chip', `<input id="p-chip" value="${v('chip')}" inputmode="numeric">`)}</div>` +
+        `<div class="row">${fld('Nacimiento', `<input type="date" id="p-birth" value="${v('birth')}" oninput="homeSync()">`)}${fld('Llegó a casa', `<input type="date" id="p-home" value="${v('home')}"${same ? ' disabled' : ''}>`)}</div>` +
+        `<div class="tgls"><label class="tgl"><input type="checkbox" id="p-same"${same ? ' checked' : ''} onchange="homeSync()"><span>Llegó a casa el mismo día que nació</span></label></div>`,
+      check:() => { const b = inputVal('p-birth'), hm = inputVal('p-home'); return b && hm && hm < b ? {m:'La llegada a casa no puede ser antes del nacimiento', f:'#p-home'} : null; }},
     {name:'Salud', focus:'#p-clinic',
       html:fld('Clínica habitual', `<input id="p-clinic" value="${v('clinic')}">`) + fld('Alergias y condiciones', `<textarea id="p-cond" style="min-height:66px" placeholder="Alergias, medicación crónica, problemas conocidos…">${v('conditions')}</textarea>`) + fld('Notas', `<textarea id="p-notes" style="min-height:58px" placeholder="Carácter, manías…">${v('notes')}</textarea>`)}];
   wizard({title:id ? 'Editar mascota' : 'Nueva mascota', steps, save:savePet, onDelete:id ? (() => delPet(id)) : null});
 }
 function savePet(){
   const {id, color} = window._petEdit, g = x => document.getElementById(x).value.trim();
-  const d = {name:g('p-name'), species:g('p-species'), sex:g('p-sex'), breed:g('p-breed'), birth:g('p-birth'), chip:g('p-chip'), notes:g('p-notes'), clinic:g('p-clinic'), conditions:g('p-cond'), color, photo:_photo};
+  const d = {name:g('p-name'), species:g('p-species'), sex:g('p-sex'), breed:g('p-breed'), birth:g('p-birth'), home:document.getElementById('p-same').checked ? g('p-birth') : g('p-home'), chip:g('p-chip'), notes:g('p-notes'), clinic:g('p-clinic'), conditions:g('p-cond'), color, photo:_photo};
   if (!d.name) return toast('Ponle nombre');
   if (id){ const cur = petById(id); if (cur) mergeEdit(cur, d, (window._petEdit && window._petEdit.snap) || cur); else S.pets.push({id, ...d}); } else S.pets.push({id:uid(), ...d});
   save(); closeSheet(); renderAll(); toast(id ? 'Cambios guardados' : `${d.name} ya está en PetBase`);
@@ -3170,7 +3555,7 @@ function delPet(id){
   if (fPet === id) fPet = null;
   save(); closeSheet(); renderAll(); toast('Mascota borrada');
 }
-// Foto: se recorta en cuadrado y se reduce a 320 px (JPEG) para que pese poco y viaje bien en la sincronización
+// Foto: al elegirla se abre el recorte (cropOpen) y se guarda en 320 px (JPEG)
 async function loadPhoto(f){
   if (window.createImageBitmap){ try{ return await createImageBitmap(f, {imageOrientation:'from-image'}); }catch(e){} }
   return new Promise((res, rej) => {
@@ -3183,19 +3568,89 @@ async function loadPhoto(f){
 document.getElementById('photoIn').addEventListener('change', async ev => {
   const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
   try{
-    const img = await loadPhoto(f), w = img.width || img.naturalWidth, h = img.height || img.naturalHeight;
-    if (!w || !h) throw new Error('sin tamaño');
-    const s = 320, c = document.createElement('canvas'); c.width = c.height = s;
-    const ctx = c.getContext('2d'), r = Math.min(w, h);
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, s, s);                     // las imágenes con transparencia quedan sobre blanco, no sobre negro
-    ctx.drawImage(img, (w - r) / 2, (h - r) / 2, r, r, 0, 0, s, s);
-    if (img.close) img.close();
-    let q = .82, out = c.toDataURL('image/jpeg', q);
-    while (out.length > 120000 && q > .4){ q -= .1; out = c.toDataURL('image/jpeg', q); }
-    _photo = out;
-    document.getElementById('pv').innerHTML = avatar({name:'?', color:_petEdit.color, photo:_photo});
+    const img = await loadPhoto(f);
+    if (!(img.width || img.naturalWidth) || !(img.height || img.naturalHeight)) throw new Error('sin tamaño');
+    cropOpen(img);
   }catch(e){ toast('No se pudo leer esa imagen. Prueba con una foto en JPG o PNG', null, 'err'); }
 });
+// ── recorte de la foto: se encuadra arrastrando, se acerca con el control, la rueda o pellizcando, y se puede girar.
+// El círculo marca lo que se verá en el avatar; se guarda el cuadrado completo.
+const CROP = {img:null, pts:new Map()};
+const cropDims = () => CROP.rot % 180 ? [CROP.h, CROP.w] : [CROP.w, CROP.h];
+const cropScale = F => F / Math.min(...cropDims()) * CROP.z;                 // con z = 1 la foto cubre justo el cuadro
+function cropClamp(){                                                         // x e y van en fracciones del cuadro: no dependen de su tamaño
+  const [W, H] = cropDims(), s = cropScale(1), mx = Math.max(0, (W * s - 1) / 2), my = Math.max(0, (H * s - 1) / 2);
+  CROP.x = Math.min(mx, Math.max(-mx, CROP.x)); CROP.y = Math.min(my, Math.max(-my, CROP.y));
+}
+function cropPaint(ctx, F){
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, F, F);                           // las imágenes con transparencia quedan sobre blanco, no sobre negro
+  ctx.save(); ctx.imageSmoothingQuality = 'high';
+  ctx.translate(F / 2 + CROP.x * F, F / 2 + CROP.y * F); ctx.rotate(CROP.rot * Math.PI / 180);
+  const s = cropScale(F); ctx.scale(s, s); ctx.drawImage(CROP.img, -CROP.w / 2, -CROP.h / 2);
+  ctx.restore();
+}
+function cropDraw(){
+  const cv = document.getElementById('ccv'); if (!cv || !CROP.img) return;
+  const F = cv.clientWidth, dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(F * dpr)){ cv.width = cv.height = Math.round(F * dpr); }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cropClamp(); cropPaint(ctx, F);
+}
+function cropZoom(z){
+  z = Math.min(4, Math.max(1, z)); const k = z / CROP.z;
+  CROP.z = z; CROP.x *= k; CROP.y *= k;                                       // acerca hacia el centro del cuadro
+  const r = document.getElementById('cz'); if (r && +r.value !== z) r.value = z;
+  cropDraw();
+}
+function cropRotate(){ CROP.rot = (CROP.rot + 90) % 360; [CROP.x, CROP.y] = [-CROP.y, CROP.x]; cropDraw(); }
+function cropOpen(img){
+  Object.assign(CROP, {img, w:img.width || img.naturalWidth, h:img.height || img.naturalHeight, rot:0, z:1, x:0, y:0}); CROP.pts.clear();
+  const el = document.getElementById('crop');
+  el.innerHTML = `<div class="ccard"><h3>Recorta la foto</h3>
+    <p class="help" style="margin:0">Arrastra para encuadrar. Acerca con el control o pellizcando.</p>
+    <div class="cbox" id="cbox" tabindex="0" aria-label="Encuadre de la foto. Flechas para mover, más y menos para acercar"><canvas id="ccv"></canvas></div>
+    <div class="crow"><label for="cz">Zoom</label><input type="range" id="cz" min="1" max="4" step="0.01" value="1" oninput="cropZoom(+this.value)"><button type="button" class="btn ic" aria-label="Girar 90 grados" onclick="cropRotate()">${svg('rep')}</button></div>
+    <div class="cfoot"><button type="button" class="btn" onclick="cropClose()">Cancelar</button><button type="button" class="btn pri" onclick="cropDone()">${svg('chk')}Usar foto</button></div></div>`;
+  el.hidden = false;
+  const box = document.getElementById('cbox'), F = () => box.clientWidth || 1;
+  box.addEventListener('pointerdown', e => { box.setPointerCapture(e.pointerId); CROP.pts.set(e.pointerId, {x:e.clientX, y:e.clientY}); });
+  box.addEventListener('pointermove', e => {
+    const p = CROP.pts.get(e.pointerId); if (!p) return;
+    const before = [...CROP.pts.values()].map(q => ({...q}));
+    p.x = e.clientX; p.y = e.clientY;
+    const after = [...CROP.pts.values()];
+    if (after.length === 1){ CROP.x += (after[0].x - before[0].x) / F(); CROP.y += (after[0].y - before[0].y) / F(); cropDraw(); }
+    else if (after.length === 2){
+      const d = a => Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y), m = a => ({x:(a[0].x + a[1].x) / 2, y:(a[0].y + a[1].y) / 2});
+      const m0 = m(before), m1 = m(after);
+      CROP.x += (m1.x - m0.x) / F(); CROP.y += (m1.y - m0.y) / F();
+      cropZoom(CROP.z * (d(after) / (d(before) || 1)));
+    }
+  });
+  const up = e => CROP.pts.delete(e.pointerId);
+  box.addEventListener('pointerup', up); box.addEventListener('pointercancel', up);
+  box.addEventListener('wheel', e => { e.preventDefault(); cropZoom(CROP.z * Math.exp(-e.deltaY * .002)); }, {passive:false});
+  box.addEventListener('keydown', e => {
+    const st = .03, mv = {ArrowLeft:[st, 0], ArrowRight:[-st, 0], ArrowUp:[0, st], ArrowDown:[0, -st]}[e.key];
+    if (mv){ e.preventDefault(); CROP.x += mv[0]; CROP.y += mv[1]; cropDraw(); }
+    else if (e.key === '+' || e.key === '='){ e.preventDefault(); cropZoom(CROP.z * 1.1); }
+    else if (e.key === '-'){ e.preventDefault(); cropZoom(CROP.z / 1.1); }
+  });
+  requestAnimationFrame(() => { cropDraw(); box.focus({preventScroll:true}); });
+}
+function cropClose(){
+  const el = document.getElementById('crop'); el.hidden = true; el.innerHTML = '';
+  if (CROP.img && CROP.img.close) CROP.img.close();
+  CROP.img = null; CROP.pts.clear();
+}
+function cropDone(){
+  if (!CROP.img) return;
+  const s = 320, c = document.createElement('canvas'); c.width = c.height = s;  // 320 px en JPEG: pesa poco y viaja bien en la sincronización
+  cropClamp(); cropPaint(c.getContext('2d'), s);
+  let q = .82, out = c.toDataURL('image/jpeg', q);
+  while (out.length > 120000 && q > .4){ q -= .1; out = c.toDataURL('image/jpeg', q); }
+  cropClose(); petPhotoSet(out);
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Exportar / importar
@@ -3205,7 +3660,7 @@ function download(name, text, type){
   a.href = URL.createObjectURL(new Blob([text], {type})); a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
-function dataJSON(){ const x = {...S}; ['account', 'outlook', 'meta', 'sync', 'walk', 'h', 'tomb', 'sh', 'su', 'app', 'version', 'appVersion', 'exportedAt', 'origen'].forEach(k => { delete x[k]; }); return {...x, app:'PetBase', version:2, appVersion:APP_VERSION, exportedAt:new Date().toISOString()}; }
+function dataJSON(){ const x = {...S}; ['account', 'outlook', 'cal', 'meta', 'sync', 'walk', 'h', 'tomb', 'sh', 'su', 'app', 'version', 'appVersion', 'exportedAt', 'origen'].forEach(k => { delete x[k]; }); return {...x, app:'PetBase', version:2, appVersion:APP_VERSION, exportedAt:new Date().toISOString()}; }
 function exportJSON(){ download(`petbase-${today()}.json`, JSON.stringify(dataJSON(), null, 2), 'application/json'); toast('Copia descargada'); }
 document.getElementById('imp').addEventListener('change', ev => {
   const f = ev.target.files[0]; if (!f) return;
@@ -3279,7 +3734,7 @@ function applyTheme(){
   if (bg) document.querySelector('meta[name=theme-color]').content = bg;
 }
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeSheet();
+  if (e.key === 'Escape'){ if (!document.getElementById('crop').hidden) return cropClose(); closeSheet(); }
   if (e.key === 'Enter' && WZ && document.getElementById('sheet').classList.contains('on') && e.target.matches('#sheet input:not([type=checkbox]):not([type=file])')){ e.preventDefault(); wzNext(); }
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.item[role=button],.note[role=button]')){ e.preventDefault(); e.target.click(); }
 });
@@ -3292,6 +3747,8 @@ try{
   if (acc){ setTimeout(() => runShortcut(acc), 200); history.replaceState(null, '', location.pathname); }
 }catch(e){}
 try{ syncBoot(); }catch(e){ console.error(e); }
+try{ calBoot(); }catch(e){ console.error(e); }
+try{ updBoot(); }catch(e){ console.error(e); }
 (function(){
   const sp = document.getElementById('splash'); if (!sp) return;
   let seen = false; try{ seen = sessionStorage.getItem('petbase_splash'); sessionStorage.setItem('petbase_splash', '1'); }catch(e){}

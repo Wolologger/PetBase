@@ -45,6 +45,36 @@ Sirve la carpeta con cualquier servidor estático (por ejemplo GitHub Pages) y a
 
 Las reglas (`firebase/firestore.rules`) dejan que cada persona lea y escriba solo en `users/{su-uid}`. La `apiKey` de una app web no es secreta: lo que protege los datos son esas reglas.
 
+### 3. Calendarios de Google y Outlook (opcional)
+
+PetBase copia las citas, la medicación, los cuidados y los eventos a un calendario propio llamado **PetBase** dentro de la cuenta de Google o de Microsoft que elijas (en **Ajustes → Calendario**). Va en un solo sentido: lo que se cambia en PetBase llega al calendario, y lo que se cambia en el calendario se sobrescribe. No hace falta servidor. Solo necesitas un identificador de cliente de cada servicio, que va en `window.PETBASE_CALENDAR` dentro de `firebase-config.js`. No son secretos.
+
+**Google Calendar** (`googleClientId`)
+
+1. En la [consola de Google Cloud](https://console.cloud.google.com), elige el mismo proyecto que usa Firebase.
+2. *APIs y servicios → Biblioteca*: activa **Google Calendar API**.
+3. *APIs y servicios → Pantalla de consentimiento de OAuth*: añade el permiso `.../auth/calendar.app.created` (solo deja crear calendarios propios y tocar los suyos, no ve el resto). Mientras la app esté en modo *Prueba*, añade como *usuarios de prueba* las cuentas que la vayan a usar.
+4. *APIs y servicios → Credenciales*: abre el **cliente web** que creó Firebase (o crea uno de tipo *Aplicación web*). En *Orígenes de JavaScript autorizados*, añade el de tu web (por ejemplo `https://tuusuario.github.io`) y, para probar en local, `http://localhost:8000`.
+5. Copia el *ID de cliente* (`…apps.googleusercontent.com`) en `googleClientId`.
+
+Google da permisos de una hora y desde una web sin servidor no se pueden renovar solos. Mientras dure el permiso, cada cambio se copia al momento. Cuando caduca, Ajustes muestra «Toca para dar permiso» y basta con tocar ahí.
+
+**Outlook** (`outlookClientId`)
+
+1. En el [portal de Azure](https://portal.azure.com) → *Microsoft Entra ID → Registros de aplicaciones → Nuevo registro*.
+2. Tipos de cuenta: **cuentas de cualquier directorio y cuentas personales de Microsoft** (para que funcionen las de outlook.com y hotmail.com).
+3. URI de redireccionamiento: plataforma **Aplicación de página única (SPA)** con la dirección de `auth.html` en tu web, por ejemplo `https://tuusuario.github.io/PetBase/auth.html`. Para probar en local, añade también `http://localhost:8000/auth.html`.
+4. *Permisos de API*: Microsoft Graph, permisos delegados `Calendars.ReadWrite` y `User.Read`.
+5. Copia el *Id. de aplicación (cliente)* en `outlookClientId`.
+
+Con Outlook el permiso se renueva solo durante unas 24 horas. Después, Ajustes pide tocar para darlo otra vez.
+
+**Cómo funciona**
+
+- Se copia lo pendiente y lo hecho en los últimos 60 días (marcado con ✓). Las repeticiones diarias, semanales, mensuales y anuales van como serie. Las de «cada N horas» van como tomas sueltas, hasta 60 tomas o 30 días, porque ni Google ni Outlook repiten por horas.
+- Cada evento lleva una marca oculta con el registro de PetBase. Así, varios dispositivos vinculados a la misma cuenta no duplican eventos, y si alguno se duplica se borra en la siguiente pasada.
+- La vinculación es de cada dispositivo y no viaja en las copias exportadas. Al desvincular, puedes borrar el calendario PetBase o dejarlo como está.
+
 ## Cómo sincroniza
 
 Cada campo de un registro lleva un sello de tiempo (reloj lógico híbrido) y se fusiona campo a campo:
@@ -64,6 +94,7 @@ Detalles, fallos del motor anterior y pruebas: [`docs/REVISION-SINCRONIZACION.md
 index.html                 app real (PWA)
 demo.html                  demo con datos de ejemplo y nube simulada
 manifest.json, sw.js       instalación y modo sin conexión
+auth.html                  vuelta del inicio de sesión de Microsoft (Outlook)
 firebase-config.js         datos de tu proyecto de Firebase (null = solo local)
 firebase/                  reglas de seguridad de Firestore e índices
 firebase.json              emuladores de Firebase
@@ -97,7 +128,7 @@ npm version major           # cambios que rompen  1.1.0 → 2.0.0
 git push --follow-tags
 ```
 
-`tools/version.js` lleva el número a `index.html`, `demo.html` y la caché del service worker (para que los móviles descarguen la versión nueva), y pone la fecha en el changelog. Si `[Sin publicar]` está vacío, se detiene.
+`tools/version.js` lleva el número a `index.html`, `demo.html`, la caché del service worker y `version.json`, y pone la fecha en el changelog. La app consulta `version.json` al abrirse y cada 30 minutos: si hay una versión más nueva, avisa con un botón **Actualizar**. En **Ajustes → Acerca de** están también «Buscar actualizaciones» y «Borrar caché y recargar» (no toca los datos). Si `[Sin publicar]` está vacío, se detiene.
 
 ## Privacidad
 
