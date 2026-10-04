@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<!-- PetBase v1.0.0 -->
+<!-- PetBase v1.1.0 -->
 <style>
 :root{
   --bg:#e8f1e6; --s1:#fffef8; --s2:#dbe8d6; --line:#bfd2bb; --tx:#15342b; --mu:#57746a;
@@ -1060,7 +1060,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API; else 
 
 /* <<< inline:sync-engine */
 // ═══════════════════════════════════════════════════════════════
-// PetBase v1.0.0 — datos, utilidades
+// PetBase — datos, utilidades
+const APP_VERSION = '1.1.0';
 // ═══════════════════════════════════════════════════════════════
 const LS_KEY = 'petbase_demo_v1', LEGACY_KEY = 'manada_demo_v1';
 const IC = {
@@ -1615,7 +1616,7 @@ function rAjustes(){
         <button onclick="document.getElementById('imp').click()">${svg('ul')}Importar copia de seguridad<span>.json</span></button>
         ${(window.PETBASE_REAL || window.PETBASE_FIREBASE) ? '' : `<button onclick="resetDemo()">${svg('rep')}Restablecer datos de ejemplo</button>`}
       </div>
-      <p class="help" style="margin-top:14px">${S.pets.length} ${S.pets.length===1?'mascota':'mascotas'} · ${S.entries.length} registros · PetBase v1.0.0${window.PETBASE_REAL ? '' : ' · demo'}</p>
+      <p class="help" style="margin-top:14px">${S.pets.length} ${S.pets.length===1?'mascota':'mascotas'} · ${S.entries.length} registros · PetBase v${APP_VERSION}${window.PETBASE_REAL ? '' : ' · demo'}</p>
     </div></div>`;
 }
 // ── Cuenta (simulada en la demo; en la app real llega de Firebase Auth vía wapps:auth-change)
@@ -3102,7 +3103,7 @@ function download(name, text, type){
   a.href = URL.createObjectURL(new Blob([text], {type})); a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
-function dataJSON(){ const x = {...S}; ['account', 'outlook', 'meta', 'sync', 'walk', 'h', 'tomb', 'sh', 'su'].forEach(k => { delete x[k]; }); return {app:'PetBase', version:2, exportedAt:new Date().toISOString(), ...x}; }
+function dataJSON(){ const x = {...S}; ['account', 'outlook', 'meta', 'sync', 'walk', 'h', 'tomb', 'sh', 'su'].forEach(k => { delete x[k]; }); return {app:'PetBase', version:2, appVersion:APP_VERSION, exportedAt:new Date().toISOString(), ...x}; }
 function exportJSON(){ download(`petbase-${today()}.json`, JSON.stringify(dataJSON(), null, 2), 'application/json'); toast('Copia descargada'); }
 document.getElementById('imp').addEventListener('change', ev => {
   const f = ev.target.files[0]; if (!f) return;

@@ -1,6 +1,6 @@
 {
   "name": "petbase",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Gestión, seguimiento e historial médico de tus mascotas: vacunas, citas, tratamientos y hábitos diarios en un solo lugar",
   "scripts": {
@@ -9,7 +9,9 @@
     "test:emulador": "firebase emulators:exec --only firestore --project demo-petbase \"node tests/fb-tests.js\"",
     "test:navegadores": "firebase emulators:exec --only firestore --project demo-petbase \"python3 tests/e2e-navegadores.py\"",
     "emuladores": "firebase emulators:start --project demo-petbase",
-    "desplegar:reglas": "firebase deploy --only firestore:rules"
+    "desplegar:reglas": "firebase deploy --only firestore:rules",
+    "version:sync": "node tools/version.js",
+    "version": "node tools/version.js && git add CHANGELOG.md index.html demo.html sw.js"
   },
   "devDependencies": { "firebase": "10.14.1", "firebase-tools": "^13.0.0", "jsdom": "^24.0.0" }
 }

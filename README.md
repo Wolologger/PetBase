@@ -84,6 +84,21 @@ npm run test:navegadores    # dos navegadores reales con la app (pip install pla
 
 `tests/reproducir-fallos-del-motor-anterior.js` ejecuta el motor anterior y muestra los fallos que motivaron el rediseño.
 
+## Versiones
+
+PetBase usa [Versionado Semántico](https://semver.org/lang/es/) y los cambios de cada versión están en [`CHANGELOG.md`](CHANGELOG.md). La versión actual se ve en **Ajustes**.
+
+Para publicar una versión, anota los cambios en la sección **[Sin publicar]** del changelog y ejecuta:
+
+```bash
+npm version patch           # correcciones        1.1.0 → 1.1.1
+npm version minor           # funciones nuevas    1.1.0 → 1.2.0
+npm version major           # cambios que rompen  1.1.0 → 2.0.0
+git push --follow-tags
+```
+
+`tools/version.js` lleva el número a `index.html`, `demo.html` y la caché del service worker (para que los móviles descarguen la versión nueva), y pone la fecha en el changelog. Si `[Sin publicar]` está vacío, se detiene.
+
 ## Privacidad
 
 Tus datos están en tu dispositivo y, si activas la sincronización, en **tu propio proyecto** de Firebase. No hay servidor ni analítica de terceros.
