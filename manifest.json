@@ -1,0 +1,72 @@
+{
+  "name": "PetBase",
+  "short_name": "PetBase",
+  "description": "Gestión, seguimiento e historial médico de tus mascotas: vacunas, citas, tratamientos y hábitos diarios en un solo lugar",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f1f1a",
+  "theme_color": "#0f1f1a",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nueva nota",
+      "short_name": "Nota",
+      "url": "./?accion=nota",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Salir de paseo",
+      "short_name": "Paseo",
+      "url": "./?accion=paseo",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Apuntar comida",
+      "short_name": "Comida",
+      "url": "./?accion=comida",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Resumen",
+      "short_name": "Resumen",
+      "url": "./?accion=resumen",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
