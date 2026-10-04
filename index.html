@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8f1e6">
 <title>PetBase</title>
 <meta name="description" content="Gestión, seguimiento e historial médico de tus mascotas: vacunas, citas, tratamientos y hábitos diarios en un solo lugar">
@@ -300,7 +300,7 @@ small.warnline{display:flex;margin:3px 0 0;color:var(--t-evento)}
   .sheet h3{font-size:20px;margin-bottom:8px}
   .sheet .f{margin-bottom:8px}
   .sheet .f label{margin-bottom:3px;font-size:12.5px}
-  .sheet .f input,.sheet .f select,.sheet .f textarea{padding:8px 11px;font-size:15.5px}
+  .sheet .f input,.sheet .f select,.sheet .f textarea{padding:8px 11px;font-size:16px}
   .sheet .f textarea{min-height:48px!important}
   .sheet .f textarea.tall{min-height:84px!important}
   .sheet .wzprog{margin-bottom:4px}
@@ -541,6 +541,11 @@ body{min-height:100dvh}
   .sheet.on{transform:translate(-50%,-50%);opacity:1;pointer-events:auto}
   .sheet .grab{display:none}
 }
+
+/* teclado del móvil abierto: la hoja del formulario se apoya encima del teclado y la barra inferior se oculta */
+html.kb .sheet{bottom:var(--kb,0px);max-height:calc(100% - var(--kb,0px) - env(safe-area-inset-top,0px) - 8px);padding-bottom:12px}
+@media (max-width:759px){ html.kb nav.bot,html.kb .fab{display:none} }
+@media (min-width:760px){ html.kb .sheet{bottom:auto;top:calc((100% - var(--kb,0px)) / 2);max-height:calc(100% - var(--kb,0px) - 24px)} }
 @media (min-width:960px){
   .wrap{max-width:1120px}
   .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 40px;align-items:start}
@@ -1656,6 +1661,33 @@ function toggleOutlook(){
 // ═══════════════════════════════════════════════════════════════
 // Hoja inferior y formularios
 // ═══════════════════════════════════════════════════════════════
+// ── teclado del móvil: que no tape el campo que se está escribiendo.
+// Android (Chrome) encoge la página gracias a interactive-widget=resizes-content; iOS no, así que se mide con visualViewport
+// cuánto ocupa el teclado (--kb) y la hoja se coloca encima. En los dos casos el campo activo se desplaza a la vista.
+const KB = {base: {}, t: null, el: null, kb: -1};
+const isEditable = el => !!el && (el.isContentEditable || el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && !/^(button|checkbox|radio|range|color|file|submit|reset|image|hidden)$/.test(el.type)) || el.tagName === 'SELECT');
+const kbOri = () => innerWidth > innerHeight ? 'l' : 'p';
+function kbSync(){
+  const vv = window.visualViewport, el = document.activeElement, ed = isEditable(el), root = document.documentElement, o = kbOri();
+  if (!ed) KB.base[o] = innerHeight;                                         // altura de referencia con el teclado cerrado, por orientación
+  // si se gira con un campo activo aún no hay referencia: se estima con la pantalla (un teclado ocupa bastante más del 25 %)
+  const base = KB.base[o] || (o === 'l' ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height)) * .75;
+  const zoom = vv && vv.scale > 1.05;                                         // con zoom el visualViewport no mide el teclado
+  const kb = vv && !zoom ? Math.max(0, Math.round(innerHeight - vv.height - vv.offsetTop)) : 0;
+  const open = ed && (kb > 80 || base - innerHeight > 120);
+  root.style.setProperty('--kb', (open ? kb : 0) + 'px');
+  root.classList.toggle('kb', open);
+  // solo se recoloca el campo cuando cambia el campo o el tamaño del teclado, no cada vez que el usuario desplaza la página
+  if (open && (el !== KB.el || Math.abs(kb - KB.kb) > 40 || !KB.wasOpen)){
+    clearTimeout(KB.t); KB.t = setTimeout(() => { if (document.activeElement === el) el.scrollIntoView({block:'center', behavior:'smooth'}); }, 60);
+  }
+  KB.el = open ? el : null; KB.kb = open ? kb : -1; KB.wasOpen = open;
+}
+if (window.visualViewport){ visualViewport.addEventListener('resize', kbSync); visualViewport.addEventListener('scroll', kbSync); }
+window.addEventListener('resize', kbSync);
+window.addEventListener('orientationchange', () => setTimeout(kbSync, 300));
+document.addEventListener('focusin', e => { if (isEditable(e.target)) setTimeout(kbSync, 300); });
+document.addEventListener('focusout', () => setTimeout(kbSync, 100));
 function openSheet(html){
   WZ = null; document.body.classList.add('sheet-open');
   const sh = document.getElementById('sheet');
@@ -3173,7 +3205,7 @@ function download(name, text, type){
   a.href = URL.createObjectURL(new Blob([text], {type})); a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
-function dataJSON(){ const x = {...S}; ['account', 'outlook', 'meta', 'sync', 'walk', 'h', 'tomb', 'sh', 'su'].forEach(k => { delete x[k]; }); return {app:'PetBase', version:2, appVersion:APP_VERSION, exportedAt:new Date().toISOString(), ...x}; }
+function dataJSON(){ const x = {...S}; ['account', 'outlook', 'meta', 'sync', 'walk', 'h', 'tomb', 'sh', 'su', 'app', 'version', 'appVersion', 'exportedAt', 'origen'].forEach(k => { delete x[k]; }); return {...x, app:'PetBase', version:2, appVersion:APP_VERSION, exportedAt:new Date().toISOString()}; }
 function exportJSON(){ download(`petbase-${today()}.json`, JSON.stringify(dataJSON(), null, 2), 'application/json'); toast('Copia descargada'); }
 document.getElementById('imp').addEventListener('change', ev => {
   const f = ev.target.files[0]; if (!f) return;
@@ -3182,7 +3214,7 @@ document.getElementById('imp').addEventListener('change', ev => {
     try{
       const p = JSON.parse(r.result); if (!p.pets || !p.entries) throw new Error('el archivo no es una copia de PetBase');
       if (!confirm(`¿Sustituir los datos actuales por ${p.pets.length} mascotas y ${p.entries.length} registros?`)) return;
-      busy('Importando copia…', 1000, 'paws', () => { adoptState({...blank(), ...p, sacks:p.sacks || []}); save(); applyTheme(); renderAll(); toast('Copia importada'); });
+      busy('Importando copia…', 1000, 'paws', () => { ['app', 'version', 'appVersion', 'exportedAt', 'origen'].forEach(k => { delete p[k]; }); adoptState({...blank(), ...p, sacks:p.sacks || []}); save(); applyTheme(); renderAll(); toast('Copia importada'); });
     }catch(err){ toast('No se pudo importar: ' + err.message); }
   };
   r.readAsText(f); ev.target.value = '';

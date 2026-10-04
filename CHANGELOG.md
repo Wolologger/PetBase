@@ -12,6 +12,11 @@ Cómo publicar una versión: anota los cambios en **[Sin publicar]** y ejecuta `
 
 ## [Sin publicar]
 
+### Corregido
+- El teclado del móvil ya no tapa los formularios: la hoja se coloca encima del teclado, el campo activo se desplaza a la vista y la barra inferior se oculta mientras se escribe.
+- En iPhone pequeño, tocar un campo de un formulario ya no amplía la página (letra de 16 px).
+- Al exportar después de importar una copia, la fecha y la versión de la copia nueva ya no se toman de la importada.
+
 ## [1.1.0] - 2026-10-04
 
 ### Añadido
