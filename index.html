@@ -5,7 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#e8f1e6">
 <title>PetBase</title>
+<meta name="description" content="Gestión, seguimiento e historial médico de tus mascotas: vacunas, citas, tratamientos y hábitos diarios en un solo lugar">
 <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PetBase">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -178,6 +185,16 @@ nav.bot button.on svg{color:var(--lk)}
 .toast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
 .toast button{color:var(--ac);font-weight:800}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.gate{display:none;position:fixed;inset:0;z-index:55;background:var(--bg);align-items:center;justify-content:center;padding:24px;overflow:auto}
+html.gated .gate{display:flex}
+html.gated .wrap,html.gated nav.bot,html.gated .fab{visibility:hidden}
+.gcard{width:100%;max-width:380px;text-align:center}
+.gbrand{display:flex;align-items:center;justify-content:center;gap:10px;font:700 40px var(--ff-d);margin-bottom:6px;color:var(--tx)}
+.gbrand svg{width:44px;height:44px;color:var(--lk)}
+.gtag{color:var(--mu);font-weight:600;margin:0 0 28px}
+.gmsg{font-weight:700;margin:10px 0 16px}
+.gmsg.err{color:var(--t-vet)}
 .sdot.err,.dot.err{background:var(--t-vet)}
 
 .me{position:relative}
@@ -562,12 +579,14 @@ body{min-height:100dvh}
 <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="loader" id="loader" hidden role="status" aria-live="polite"><div class="lcard"><div class="lbody"></div></div></div>
+<div class="gate" id="gate" role="dialog" aria-modal="true" aria-label="Iniciar sesión"></div>
 <div class="splash" id="splash" aria-hidden="true"></div>
 <input type="file" id="imp" accept="application/json" hidden>
 <input type="file" id="photoIn" accept="image/*" hidden>
 
 <script>window.PETBASE_REAL = true;</script>
 <script src="firebase-config.js"></script>
+<script>if (window.PETBASE_FIREBASE) document.documentElement.classList.add("gated");</script>
 <script>
 /* >>> inline:sync-engine (generado: edita sync/sync-engine.js y ejecuta  node tools/inline-engine.js) */
 /* ════════════════════════════════════════════════════════════════════════════
@@ -2284,12 +2303,42 @@ function onStorage(e){
   const lacks = Object.keys(S.meta).some(id => !other.meta[id] || SE.stable(S.meta[id].t) !== SE.stable(other.meta[id].t) || S.meta[id].d !== other.meta[id].d);
   if (n || lacks){ persist(); applyTheme(); renderAll(); }
 }
+
+// ── pantalla de acceso: con Firebase configurado hay que iniciar sesión antes de usar la app
+const GATE = {t:null};
+function gateShow(state, msg, busy){
+  const g = document.getElementById('gate'); if (!g) return;
+  document.documentElement.classList.add('gated');
+  const body = state === 'loading' ? `<div style="display:flex;justify-content:center">${loaderHTML('paws')}</div><p class="gmsg">Comprobando tu sesión…</p>`
+    : state === 'error' ? `<p class="gmsg err">${esc(msg)}</p><button class="btn pri w" onclick="location.reload()">Reintentar</button>`
+    : `${msg ? `<p class="gmsg err">${esc(msg)}</p>` : ''}<button class="btn pri w" id="gateBtn"${busy ? ' disabled' : ''} onclick="fbSignIn()">${busy ? 'Abriendo Google…' : 'Iniciar sesión con Google'}</button><p class="help" style="margin-top:14px">Tus datos se guardan en tu cuenta y se sincronizan entre tus dispositivos.</p>`;
+  g.innerHTML = `<div class="gcard"><div class="gbrand">${svg('paw')}PetBase</div><p class="gtag">Gestión, seguimiento e historial médico de tus mascotas</p>${body}</div>`;
+}
+function gateHide(){ clearTimeout(GATE.t); document.documentElement.classList.remove('gated'); const g = document.getElementById('gate'); if (g) g.innerHTML = ''; }
+const authMsg = e => {
+  const c = (e && e.code) || '';
+  if (/unauthorized-domain/.test(c)) return 'Este dominio no está autorizado en Firebase. Añádelo en Authentication → Configuración → Dominios autorizados.';
+  if (/network-request-failed/.test(c)) return 'Sin conexión. Inténtalo de nuevo cuando tengas internet.';
+  if (/popup-closed|cancelled/.test(c)) return 'Has cerrado la ventana de Google. Pulsa el botón para volver a intentarlo.';
+  return 'No se pudo iniciar sesión (' + (c || (e && e.message) || 'error') + ').';
+};
+function fbBoot(){
+  gateShow('loading');
+  clearTimeout(GATE.t);
+  // si la comprobación tarda mucho y ya habías iniciado sesión antes, se puede usar la app con los datos de este dispositivo
+  GATE.t = setTimeout(() => { if (S.account && S.account.uid){ gateHide(); toast('Sin conexión con Firebase: trabajas con los datos de este dispositivo', null, 'warn'); } }, 12000);
+  fbInit().catch(e => {
+    console.error(e); clearTimeout(GATE.t);
+    if (S.account && S.account.uid){ gateHide(); toast('Sin conexión: trabajas con los datos de este dispositivo', null, 'warn'); }
+    else gateShow('error', 'No se pudo cargar Firebase. Comprueba la conexión e inténtalo de nuevo.');
+  });
+}
 function syncBoot(){
   window.addEventListener('storage', onStorage);
   window.addEventListener('online', () => { SYNCST.retry = 0; if (S.account && S.sync.mode !== 'manual') syncStart(); else renderChrome(); });
   window.addEventListener('offline', () => { stopLive(); renderChrome(); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.account && S.sync.mode === 'auto' && !SYNCING && !isOffline()) runSync('sync', {silent:true}); });
-  if (window.PETBASE_FIREBASE) fbInit().catch(e => { console.error(e); toast('No se pudo cargar Firebase', null, 'err'); });
+  if (window.PETBASE_FIREBASE) fbBoot();
   else if (S.account) setTimeout(syncStart, 700);
 }
 
@@ -2307,6 +2356,7 @@ function signOut(){
   stopLive(); clearTimeout(SYNCST.timer); clearTimeout(SYNCST.pushT); ADAPTER = null; REMOTE = {}; SYNCST.err = null;
   if (FB && FB.auth && FB.auth.currentUser) FB.AU.signOut(FB.auth).catch(() => {});
   S.account = null; persist(); renderAll(); toast('Sesión cerrada');
+  if (window.PETBASE_FIREBASE){ if (FB && FB.mock) lsSet('petbase_mock_session', ''); closeSheet(); go('inicio'); gateShow('login'); }
 }
 
 // ── Firebase real (se activa definiendo window.PETBASE_FIREBASE antes de cargar la app)
@@ -2320,29 +2370,33 @@ async function fbInit(){
     if (em.mockUser){ FS.connectFirestoreEmulator(db, em.host, em.fsPort, {mockUserToken:{sub:em.mockUser.uid, email:em.mockUser.email}}); FB.mock = em.mockUser; }
     else { AU.connectAuthEmulator(auth, `http://${em.host}:${em.authPort}`, {disableWarnings:true}); FS.connectFirestoreEmulator(db, em.host, em.fsPort); }
   }
-  if (FB.mock){ fbUser({uid:FB.mock.uid, email:FB.mock.email, displayName:FB.mock.name || FB.mock.email}); return; }
+  if (FB.mock){ FB.mockUser = {uid:FB.mock.uid, email:FB.mock.email, displayName:FB.mock.name || FB.mock.email}; fbUser(!FB.mock.manual || lsGet('petbase_mock_session') ? FB.mockUser : null); return; }
   AU.onAuthStateChanged(auth, fbUser);
   try{ await AU.getRedirectResult(auth); }catch(e){ if (!/no-auth-event/.test(e.code || '')) toast('No se pudo iniciar sesión: ' + (e.code || e.message), null, 'err'); }
 }
 function fbUser(user){
   if (!user){
     if (S.account && S.account.uid && S.account.uid !== 'demo-user'){ stopLive(); ADAPTER = null; if (FB) FB.adapter = null; S.account = null; persist(); renderAll(); }
+    clearTimeout(GATE.t); gateShow('login');
     return;
   }
   if (S.sync.owner && S.sync.owner !== user.uid && hasLocalData() && !confirm('Los datos de este dispositivo pertenecen a otra cuenta. ¿Unirlos con la cuenta ' + (user.email || 'nueva') + '?\n\nAceptar: se unen. Cancelar: no se inicia sesión.')){
-    if (FB && FB.auth && FB.auth.currentUser) FB.AU.signOut(FB.auth); return;
+    if (FB && FB.auth && FB.auth.currentUser) FB.AU.signOut(FB.auth); else lsSet('petbase_mock_session', '');
+    gateShow('login', 'Inicio de sesión cancelado: los datos de este dispositivo son de otra cuenta.'); return;
   }
   S.sync.owner = user.uid;
   S.account = {name:user.displayName || user.email || 'Cuenta', email:user.email || '', provider:'Google', uid:user.uid};
   FB.adapter = SE.makeFirestoreAdapter(FB.FS, FB.db, user.uid); ADAPTER = null; SYNCST.err = null;
-  persist(); renderAll(); syncStart();
+  persist(); renderAll(); gateHide(); syncStart();
 }
 async function fbSignIn(){
+  if (FB.mock){ lsSet('petbase_mock_session', '1'); return fbUser(FB.mockUser); }
   const p = new FB.AU.GoogleAuthProvider();
+  gateShow('login', '', true);
   try{ await FB.AU.signInWithPopup(FB.auth, p); }
   catch(e){
-    if (/popup-blocked|operation-not-supported|cancelled-popup/.test(e.code || '')) await FB.AU.signInWithRedirect(FB.auth, p);
-    else if (!/popup-closed/.test(e.code || '')) toast('No se pudo iniciar sesión: ' + (e.code || e.message), null, 'err');
+    if (/popup-blocked|operation-not-supported|cancelled-popup/.test(e.code || '') && !/closed/.test(e.code || '')) { try{ await FB.AU.signInWithRedirect(FB.auth, p); return; }catch(e2){ e = e2; } }
+    gateShow('login', authMsg(e));
   }
 }
 
@@ -3083,18 +3137,31 @@ function delPet(id){
   if (fPet === id) fPet = null;
   save(); closeSheet(); renderAll(); toast('Mascota borrada');
 }
-// Foto: reduce a 320px JPEG para no inflar el almacenamiento
-document.getElementById('photoIn').addEventListener('change', ev => {
-  const f = ev.target.files[0]; if (!f) return;
-  const img = new Image(), url = URL.createObjectURL(f);
-  img.onload = () => {
+// Foto: se recorta en cuadrado y se reduce a 320 px (JPEG) para que pese poco y viaje bien en la sincronización
+async function loadPhoto(f){
+  if (window.createImageBitmap){ try{ return await createImageBitmap(f, {imageOrientation:'from-image'}); }catch(e){} }
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(f);
+    img.onload = () => { URL.revokeObjectURL(url); res(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('imagen no válida')); };
+    img.src = url;
+  });
+}
+document.getElementById('photoIn').addEventListener('change', async ev => {
+  const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+  try{
+    const img = await loadPhoto(f), w = img.width || img.naturalWidth, h = img.height || img.naturalHeight;
+    if (!w || !h) throw new Error('sin tamaño');
     const s = 320, c = document.createElement('canvas'); c.width = c.height = s;
-    const r = Math.min(img.width, img.height), ctx = c.getContext('2d');
-    ctx.drawImage(img, (img.width-r)/2, (img.height-r)/2, r, r, 0, 0, s, s);
-    _photo = c.toDataURL('image/jpeg', .82); URL.revokeObjectURL(url);
+    const ctx = c.getContext('2d'), r = Math.min(w, h);
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, s, s);                     // las imágenes con transparencia quedan sobre blanco, no sobre negro
+    ctx.drawImage(img, (w - r) / 2, (h - r) / 2, r, r, 0, 0, s, s);
+    if (img.close) img.close();
+    let q = .82, out = c.toDataURL('image/jpeg', q);
+    while (out.length > 120000 && q > .4){ q -= .1; out = c.toDataURL('image/jpeg', q); }
+    _photo = out;
     document.getElementById('pv').innerHTML = avatar({name:'?', color:_petEdit.color, photo:_photo});
-  };
-  img.src = url; ev.target.value = '';
+  }catch(e){ toast('No se pudo leer esa imagen. Prueba con una foto en JPG o PNG', null, 'err'); }
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -3200,6 +3267,6 @@ try{ syncBoot(); }catch(e){ console.error(e); }
   setTimeout(() => { sp.classList.add('out'); setTimeout(() => sp.remove(), 500); }, 1200);
 })();
 </script>
-<script>if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(function(){});</script>
+<script>if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) navigator.serviceWorker.register("sw.js").catch(function(){});</script>
 </body>
 </html>

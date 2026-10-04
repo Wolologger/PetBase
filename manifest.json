@@ -1,72 +1,36 @@
 {
+  "id": "petbase",
   "name": "PetBase",
   "short_name": "PetBase",
   "description": "Gestión, seguimiento e historial médico de tus mascotas: vacunas, citas, tratamientos y hábitos diarios en un solo lugar",
-  "id": "./",
+  "lang": "es",
+  "dir": "ltr",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0f1f1a",
-  "theme_color": "#0f1f1a",
-  "lang": "es",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#e8f1e6",
+  "theme_color": "#e8f1e6",
+  "categories": ["lifestyle", "health", "utilities"],
+  "prefer_related_applications": false,
   "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "screenshots/inicio.png", "sizes": "1080x2340", "type": "image/png", "form_factor": "narrow", "label": "Inicio: el día de hoy, toques rápidos y próximos eventos" },
+    { "src": "screenshots/calendario.png", "sizes": "1080x2340", "type": "image/png", "form_factor": "narrow", "label": "Calendario con vacunas, medicación y citas" },
+    { "src": "screenshots/mascotas.png", "sizes": "1080x2340", "type": "image/png", "form_factor": "narrow", "label": "Tus mascotas y el estado del pienso" },
+    { "src": "screenshots/resumen.png", "sizes": "1080x2340", "type": "image/png", "form_factor": "narrow", "label": "Resumen semanal de paseos, notas y cuidados" },
+    { "src": "screenshots/escritorio.png", "sizes": "1280x720", "type": "image/png", "form_factor": "wide", "label": "PetBase en pantalla grande" }
   ],
   "shortcuts": [
-    {
-      "name": "Nueva nota",
-      "short_name": "Nota",
-      "url": "./?accion=nota",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Salir de paseo",
-      "short_name": "Paseo",
-      "url": "./?accion=paseo",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Apuntar comida",
-      "short_name": "Comida",
-      "url": "./?accion=comida",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Resumen",
-      "short_name": "Resumen",
-      "url": "./?accion=resumen",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    }
+    { "name": "Nueva nota", "short_name": "Nota", "url": "./?accion=nota", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
+    { "name": "Salir de paseo", "short_name": "Paseo", "url": "./?accion=paseo", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
+    { "name": "Apuntar comida", "short_name": "Comida", "url": "./?accion=comida", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
+    { "name": "Resumen", "short_name": "Resumen", "url": "./?accion=resumen", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] }
   ]
 }
